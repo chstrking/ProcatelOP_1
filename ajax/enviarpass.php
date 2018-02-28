@@ -1,0 +1,19 @@
+<?php
+error_reporting(1);
+require_once('..//conexion/conexiondb.php');
+$conexion=crear_conexion();
+$respuesta=array();
+$usuario=$_REQUEST['usuario'];
+$respuesta["success"]=true;
+$login=RecuperarPass($conexion,$usuario);
+if(count($login)>0)
+{
+	sendMail($login['Mail'],$login['Pwd']); 
+}
+else
+{
+	$respuesta["success"]=false;
+}
+echo json_encode($respuesta);
+	//var_dump($sucursal);
+?>

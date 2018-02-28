@@ -1,0 +1,168 @@
+<?php
+error_reporting(1);
+session_start();
+require_once('..//conexion/conexiondb.php');
+$conexion=crear_conexion();
+//var_dump('ENTRO');
+if(isset($_SESSION['usuario'])) 
+{
+	//var_dump('ENTRO');
+	$respuesta=array();
+	$respuesta["success"]=true;
+	$usuario=$_SESSION['usuario'];
+	$sucursal=$_SESSION['sucursal'];
+	$cliente=$_REQUEST['cliente'];
+	$vendedor=$_REQUEST['vendedor'];
+	$contado_val=$_REQUEST['contado_val'];
+	$transporte=0;
+	$motivo=$_REQUEST['motivo'];
+	$fecha_facturacion=$_REQUEST['fecha_facturacion'];
+	$TipoProd=$_REQUEST['TipoProd'];
+	$factura=intval($sucursal["Suc_ActualNumF"])+1;
+	$NoFact=$_REQUEST['NoFact'];
+	$serie=substr($NoFact,0,6);
+	$secuencial=substr($NoFact,6,9);
+	$NumAuto=$_REQUEST['NumAuto'];
+	$Fact_CodOrdenCompra="0";
+	$FechaCad=$_REQUEST['FechaCad'];
+	$detalles=$_SESSION['detalle_facturacion'];
+	$detalles_completos=$_SESSION['detalle_facturacion_completo'];
+	/*if($tipofacturacion=="3")
+	{
+		$serie=$sucursal["Suc_SerieF"];
+		$num_doc=str_pad($factura, 7, "0", STR_PAD_LEFT);
+		$NumAutSri=$sucursal["Suc_NumAutSriF"];
+		$FecMaxSri=$sucursal["Suc_FecMaxSriF"]->format('d-m-Y');
+	}
+	else
+	{
+		$serie=$sucursal["Suc_SerieNV"];
+		$num_doc="";
+		$NumAutSri=$sucursal["Suc_NumAutSriNV"];
+		$FecMaxSri=$sucursal["Suc_FecMaxSriNV"]->format('d-m-Y');
+	}*/
+	$subtotal_iva=0;
+	$subtotal_cero=0;
+	$total_descuento=0;
+	$iva=0;
+	$ice=0;
+	$total_factura=0;
+	$otros=0;
+	$CodBodega="1";
+	$Kar_Graba="1";
+	$Fact_Linea="";
+	$Fact_TipoCxC="1";
+	$Fact_Codigo="";
+	$AsiC_Codigo="";
+	$AsiC_NumAsiento="";
+	$Kar_Codigo="";
+	$ACAK_Codigo="";
+	$Fecha_plazo=30;
+	$BodegaID=$_REQUEST['BodegaID'];
+	
+	//$detalles=$_SESSION['detalle_facturacion'];
+	foreach($detalles as $detalle)
+	{
+		$subtotal=(int)$detalle['cantidad']*(float)$detalle['costo'];
+		$valor_descuento=($subtotal*(int)$detalle['descuento'])/100;
+		$total_factura=$subtotal-$valor_descuento;
+		$subtotal_iva=$subtotal_iva+$total_factura;
+		$total_descuento=$total_descuento+$valor_descuento;
+	}
+	//$Kar_Graba=$total_factura;
+	$iva=0.12*$subtotal_iva;
+	if($transporte!="")
+	{
+		$total_factura=$iva+$subtotal_iva;//+floatval($transporte);
+	}
+	else
+	{
+		$total_factura=$iva+$subtotal_iva;
+	}
+	
+
+	$datos_cabecera=guardarcabeceraC($conexion,
+		1,
+		"I",
+		$cliente,
+		$fecha_facturacion,
+		$motivo,
+		3,
+		$total_factura,
+		$subtotal_iva,
+		$iva,
+		$ice,
+		$serie,
+		$secuencial,
+		$FechaCad,
+		$NumAuto,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		"F",
+		0,
+		$subtotal_iva,
+		0,
+		0,
+		0,
+		0,
+		$BodegaID,
+		$usuario,
+		"00",
+		"302",
+		0,
+		0,
+		0,
+		0,
+		0);
+	$datos = ultima_facturaC($conexion,$_SESSION['usuario']);
+
+	foreach($detalles as $clave => $detalle)
+	{
+		$subtotal=(int)$detalle['cantidad']*(float)$detalle['costo'];
+		$valor_descuento=($subtotal*(int)$detalle['descuento'])/100;
+		$total=$subtotal-$valor_descuento;
+		$detalle_completo=$detalles_completos[$clave];
+		/*if($tipofacturacion=="3")
+		{
+			$referencia="FACT-F".str_pad($datos[0]["VFact_Codigo"], 7, "0", STR_PAD_LEFT);
+		}
+		else
+		{
+			$referencia="FACT-V".str_pad($datos[0]["VFact_Codigo"], 7, "0", STR_PAD_LEFT);
+		}*/
+		guardardetallefacturacionC($conexion,
+			intval($BodegaID),
+			intval($detalle_completo["Pro_Codigo"]),
+			NULL,
+			NULL,
+			intval($detalle["cantidad"]),
+			$detalle['costo'],
+			intval($datos[0]["kardex"]),
+			intval($detalle["cantidad"]),
+			$detalle['costo'],
+			$detalle['costo'],
+			intval($datos[0]["Factura"]),
+			intval($detalle["cantidad"]),
+			0,
+			0,
+			0,
+			$detalle['costo'],
+			$total,
+			$total,
+			intval($datos[0]["Asiento"]),
+			intval($datos[0]["Provision"]),
+			105,
+			"KARD",
+			$motivo,
+			$subtotal,
+			0,
+			intval($detalle_completo["DProd_Codigo"]));
+	}
+	$respuesta["data"]=$datos[0]["Factura"];
+	echo json_encode($respuesta);
+}
+?>
